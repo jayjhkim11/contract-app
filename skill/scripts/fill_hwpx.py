@@ -301,9 +301,28 @@ def make_bankbook_pdf(values, skill_dir, output_dir):
     if not img_filename:
         return None
 
-    img_path = os.path.join(skill_dir, 'templates', img_filename)
-    if not os.path.exists(img_path):
-        print(f"통장사본 이미지 없음: {img_path}")
+    # NFC/NFD 정규화 차이 처리 (macOS 업로드된 한글 파일명 호환)
+    import unicodedata
+    templates_dir = os.path.join(skill_dir, 'templates')
+    img_path = None
+    candidates = [
+        img_filename,
+        unicodedata.normalize('NFC', img_filename),
+        unicodedata.normalize('NFD', img_filename),
+    ]
+    for c in candidates:
+        p = os.path.join(templates_dir, c)
+        if os.path.exists(p):
+            img_path = p
+            break
+    if not img_path and os.path.isdir(templates_dir):
+        target_nfc = unicodedata.normalize('NFC', img_filename)
+        for fname in os.listdir(templates_dir):
+            if unicodedata.normalize('NFC', fname) == target_nfc:
+                img_path = os.path.join(templates_dir, fname)
+                break
+    if not img_path:
+        print(f"통장사본 이미지 없음: {img_filename}")
         return None
 
     company_name = values['1'].replace(' ', '_')
