@@ -50,8 +50,11 @@ export async function POST(req: NextRequest) {
 
     // 3) Drive 업로드
     const drive = getDrive(driveAccessToken);
-    const rootName = process.env.NEXT_PUBLIC_DRIVE_ROOT_FOLDER || "청춘작당";
-    const year = project.manual.submissionYear || yearOf(project.parsed.endDate || project.parsed.contractDate);
+    const rootName = process.env.NEXT_PUBLIC_DRIVE_ROOT_FOLDER || "계약 문서 관리";
+       // 폴더 연도: 사용자가 입력한 제출일 → 계약종료일 → 계약일자
+       const year = project.manual.submissionDate
+         ? yearOf(project.manual.submissionDate)
+         : yearOf(project.parsed.endDate || project.parsed.contractDate);
     const folderName = slugifyForFolder(project.parsed.serviceName || projectId);
     const folderId = await ensureProjectFolder(drive, rootName, year, folderName);
 
