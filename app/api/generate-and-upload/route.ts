@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const snap = await docRef.get();
     if (!snap.exists) return new NextResponse("project not found", { status: 404 });
     const project = { id: snap.id, ...(snap.data() as any) } as Project;
-    if (project.ownerId !== uid) return new NextResponse("forbidden", { status: 403 });
+    // 공용 도구: 로그인된 모든 사용자가 모든 프로젝트의 서식을 생성/재생성 가능
 
     // 1) 스킬에 넘길 values 계산
     const values = buildValues(project, formKey);
