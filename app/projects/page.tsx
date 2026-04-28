@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, query, onSnapshot } from "firebase/firestore";
 import Header from "@/components/Header";
 import ProjectCard from "@/components/ProjectCard";
 import ContractUpload from "@/components/ContractUpload";
@@ -24,11 +24,8 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     if (!auth.currentUser) return;
-    // orderBy 사용 시 composite index 필요. client-side 정렬로 우회.
-    const q = query(
-      collection(db, "projects"),
-      where("ownerId", "==", auth.currentUser.uid)
-    );
+    // 공용 도구: 모든 사용자가 만든 모든 프로젝트를 표시. orderBy 는 client-side 정렬.
+    const q = query(collection(db, "projects"));
     return onSnapshot(q, (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Project[];
       list.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
