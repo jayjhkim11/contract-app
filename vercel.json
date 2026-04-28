@@ -1,0 +1,15 @@
+{
+  "functions": {
+    "api/generate.py": {
+      "runtime": "python3.11",
+      "memory": 1024,
+      "maxDuration": 30,
+      "includeFiles": "skill/**"
+    },
+    "api/parse.py": {
+      "runtime": "python3.11",
+      "memory": 512,
+      "maxDuration": 15
+    }
+  }
+}
