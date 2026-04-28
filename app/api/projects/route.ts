@@ -29,10 +29,8 @@ export async function POST(req: NextRequest) {
 
     // ② 동일 계약번호의 기존 프로젝트 검색 (중복 방지)
     if (parsed.contractNumber) {
-      const dupSnap = await adminDb
-        .collection("projects")
-        .where("ownerId", "==", uid)
-        .get();
+      // 공용 도구: 모든 프로젝트 대상으로 중복 검색
+      const dupSnap = await adminDb.collection("projects").get();
       const dup = dupSnap.docs.find(
         (d) => (d.data() as any)?.parsed?.contractNumber === parsed.contractNumber
       );

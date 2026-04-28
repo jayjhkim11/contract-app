@@ -24,9 +24,7 @@ export async function DELETE(
       return new NextResponse("project not found", { status: 404 });
     }
     const data = snap.data() as any;
-    if (data.ownerId !== uid) {
-      return new NextResponse("forbidden", { status: 403 });
-    }
+    // 공용 도구: 로그인된 모든 사용자가 삭제 가능 (소유자 체크 없음)
 
     // Storage PDF 삭제 (있는 경우)
     if (data.contractPdfPath) {
