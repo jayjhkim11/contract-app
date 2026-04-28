@@ -72,8 +72,14 @@ export async function ensureProjectFolder(
 }
 
 /**
- * 파일 업로드. existingFileId가 주어지면 in-place 업데이트하여
- * Drive 링크가 보존된다 (재생성 시 활용).
+ * 파일 업로드. existingFileId가 주어지면 in-place 업데이트하여 Drive 링크가 보존된다.
+ *
+ * 단, 다음 경우에는 in-place 업데이트 대신 새 파일을 생성한다:
+ *  - 기존 파일이 사라졌거나 접근 권한 없음 (404, 403)
+ *  - 기존 파일의 부모 폴더가 현재 expected folderId 와 다름 (개인 드라이브 → 공유 드라이브 이전 등)
+ *
+ * 새 파일 생성 시 함수가 새 fileId 를 반환하므로, 호출자가 Firestore 의 driveFileId 를 갱신해야
+ * 다음 재생성에서 정상 in-place 업데이트가 되며 Drive 링크도 보존된다.
  */
 export async function uploadFile(
   drive: DriveClient,
@@ -86,23 +92,42 @@ export async function uploadFile(
   }
 ): Promise<{ id: string; webViewLink: string }> {
   const buffer = Buffer.from(opts.contentBase64, "base64");
-  const stream = Readable.from(buffer);
+
+  // 기존 파일 in-place 업데이트 시도 (가능한 경우)
   if (opts.existingFileId) {
-    const res = await drive.files.update({
-      fileId: opts.existingFileId,
-      requestBody: { name: opts.fileName },
-      media: { mimeType: opts.mimeType, body: stream },
-      fields: "id,webViewLink",
-      supportsAllDrives: true,
-    });
-    return { id: res.data.id!, webViewLink: res.data.webViewLink! };
+    try {
+      const meta = await drive.files.get({
+        fileId: opts.existingFileId,
+        fields: "id,parents,trashed",
+        supportsAllDrives: true,
+      });
+      const parents = meta.data.parents || [];
+      const sameFolder = parents.includes(opts.folderId);
+      const trashed = !!meta.data.trashed;
+
+      if (sameFolder && !trashed) {
+        const res = await drive.files.update({
+          fileId: opts.existingFileId,
+          requestBody: { name: opts.fileName },
+          media: { mimeType: opts.mimeType, body: Readable.from(buffer) },
+          fields: "id,webViewLink",
+          supportsAllDrives: true,
+        });
+        return { id: res.data.id!, webViewLink: res.data.webViewLink! };
+      }
+      // 다른 폴더 또는 휴지통 → 새 파일 생성으로 fall-through
+      // (옛 파일은 그대로 두고 새 위치에 새 파일)
+    } catch (e) {
+      // 파일이 사라졌거나 접근 권한 없음 → 새 파일 생성으로 fall-through
+    }
   }
+
   const res = await drive.files.create({
     requestBody: {
       name: opts.fileName,
       parents: [opts.folderId],
     },
-    media: { mimeType: opts.mimeType, body: stream },
+    media: { mimeType: opts.mimeType, body: Readable.from(buffer) },
     fields: "id,webViewLink",
     supportsAllDrives: true,
   });
