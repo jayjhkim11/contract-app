@@ -27,7 +27,25 @@ export async function POST(req: NextRequest) {
     // ① 파싱 (Python serverless 호출)
     const parsed = await parsePdfViaPython(req, buffer);
 
-    // ② 새 문서 ID + Storage 업로드
+    // ② 동일 계약번호의 기존 프로젝트 검색 (중복 방지)
+    if (parsed.contractNumber) {
+      const dupSnap = await adminDb
+        .collection("projects")
+        .where("ownerId", "==", uid)
+        .get();
+      const dup = dupSnap.docs.find(
+        (d) => (d.data() as any)?.parsed?.contractNumber === parsed.contractNumber
+      );
+      if (dup) {
+        return NextResponse.json({
+          projectId: dup.id,
+          alreadyExists: true,
+          contractNumber: parsed.contractNumber,
+        });
+      }
+    }
+
+    // ③ 새 문서 ID + Storage 업로드
     const docRef = adminDb.collection("projects").doc();
     const projectId = docRef.id;
     const storagePath = `contracts/${uid}/${projectId}/${file.name}`;
@@ -36,7 +54,7 @@ export async function POST(req: NextRequest) {
       .file(storagePath)
       .save(buffer, { contentType: "application/pdf" });
 
-    // ③ Firestore 기록
+    // ④ Firestore 기록
     const now = new Date().toISOString();
     await docRef.set({
       ownerId: uid,
@@ -50,7 +68,7 @@ export async function POST(req: NextRequest) {
       updatedAt: now,
     });
 
-    return NextResponse.json({ projectId });
+    return NextResponse.json({ projectId, alreadyExists: false });
   } catch (e: any) {
     console.error("[/api/projects] failed", e);
     return new NextResponse(e?.message ?? "internal error", { status: 500 });
