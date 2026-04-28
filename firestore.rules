@@ -1,19 +1,15 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 본인 프로필만 read/write
+    // 본인 프로필
     match /users/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
-    // 프로젝트는 owner만. 단일 조직 운영이므로 추후 멤버십 도입 시 확장.
+    // 프로젝트는 공용 도구 — 로그인된 모든 사용자가 읽기/쓰기 가능.
+    // (감사 목적으로 projects/{id}.ownerId 에 생성자 uid 는 계속 기록)
     match /projects/{projectId} {
-      allow read: if request.auth != null
-        && resource.data.ownerId == request.auth.uid;
-      allow create: if request.auth != null
-        && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if request.auth != null
-        && resource.data.ownerId == request.auth.uid;
+      allow read, create, update, delete: if request.auth != null;
     }
   }
 }
