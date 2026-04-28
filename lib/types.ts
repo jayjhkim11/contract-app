@@ -19,6 +19,8 @@ export const FORM_LABEL: Record<FormKey, string> = {
 
 // 계약서 자동 추출값. parse.ts 가 생성.
 export interface ParsedContract {
+  /** 계약번호 (예: R26TA01607251-00). 같은 계약서 중복 업로드 검출용. */
+  contractNumber: string;
   company: string;
   address: string;
   representative: string;
