@@ -35,7 +35,14 @@ export default function ContractUpload() {
           const msg = await res.text();
           throw new Error(msg || "업로드 실패");
         }
-        const { projectId } = await res.json();
+        const { projectId, alreadyExists, contractNumber } = await res.json();
+        if (alreadyExists) {
+          toast.info(
+            `같은 계약번호(${contractNumber})의 프로젝트가 이미 있어 해당 프로젝트로 이동합니다.`
+          );
+        } else {
+          toast.success("계약서 파싱 완료, 새 프로젝트가 생성되었습니다.");
+        }
         router.push(`/projects/${projectId}`);
       } catch (e: any) {
         toast.error(e?.message ?? "업로드 실패");
