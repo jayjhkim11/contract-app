@@ -9,6 +9,14 @@ interface Props {
   onGenerate: (key: FormKey) => Promise<void>;
 }
 
+/**
+ * Drive 파일 ID로부터 직접 다운로드 URL 생성.
+ * hwpx는 Drive 미리보기에서 안 열리므로 미리보기 대신 즉시 다운로드.
+ */
+function driveDownloadUrl(fileId: string): string {
+  return `https://drive.google.com/uc?id=${fileId}&export=download`;
+}
+
 export default function FormGrid({ project, onGenerate }: Props) {
   const [busyKey, setBusyKey] = useState<FormKey | null>(null);
 
@@ -24,16 +32,29 @@ export default function FormGrid({ project, onGenerate }: Props) {
     }
   }
 
-  // 청구서/선금 의존성: 사용자 입력 검증
-  const seongeum = project.manual.seongeumAmount;
-  const requiresSeongeum = (key: FormKey) => key === "3__선금신청서" && !seongeum;
+  const seongeumRate = project.manual.seongeumRate ?? 0;
+  const requiresSeongeum = (key: FormKey) => key === "3__선금신청서" && seongeumRate <= 0;
   const requiresDepartment = (key: FormKey) =>
-    key === "1__계약_시_구비서류" && !(project.manual.department || project.parsed.department);
+    key === "1__계약_시_구비서류" &&
+    !(project.manual.department || project.parsed.department);
 
   return (
     <section>
-      <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        서식 생성
+      <div className="mb-2 flex items-center justify-between">
+        <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          서식 생성
+        </div>
+        {project.driveFolderId && (
+          <a
+            href={`https://drive.google.com/drive/folders/${project.driveFolderId}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:border-foreground"
+          >
+            <span>📁</span>
+            Drive 폴더 열기
+          </a>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {FORM_KEYS.map((key) => {
@@ -53,7 +74,7 @@ export default function FormGrid({ project, onGenerate }: Props) {
                   ? `생성됨 · ${new Date(rec.generatedAt).toLocaleDateString("ko-KR")}`
                   : blocked
                     ? requiresSeongeum(key)
-                      ? "상단에 선금 신청금액 입력 필요"
+                      ? "상단에 선금 신청비율 입력 필요"
                       : "상단에 발주부서 입력 필요"
                     : "미생성"}
               </div>
@@ -61,19 +82,17 @@ export default function FormGrid({ project, onGenerate }: Props) {
                 {rec ? (
                   <>
                     <a
-                      href={rec.driveFileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-md border border-border bg-background px-3 py-1.5 text-xs hover:border-foreground"
+                      href={driveDownloadUrl(rec.driveFileId)}
+                      className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
                     >
-                      파일 열기
+                      다운로드
                     </a>
                     <button
                       onClick={() => handle(key)}
                       disabled={busy || blocked}
                       className="rounded-md border border-border bg-background px-3 py-1.5 text-xs hover:border-foreground disabled:opacity-50"
                     >
-                      {busy ? "재생성 중..." : "재생성하기"}
+                      {busy ? "재생성 중..." : "재생성"}
                     </button>
                   </>
                 ) : (
@@ -86,6 +105,17 @@ export default function FormGrid({ project, onGenerate }: Props) {
                   </button>
                 )}
               </div>
+              {/* 청구서일 때 통장사본 PDF 부속 파일 다운로드 */}
+              {rec?.extraFiles?.[0] && (
+                <div className="mt-2 text-xs">
+                  <a
+                    href={driveDownloadUrl(rec.extraFiles[0].driveFileId)}
+                    className="text-blue-700 underline hover:text-blue-900"
+                  >
+                    통장사본 PDF 다운로드
+                  </a>
+                </div>
+              )}
             </div>
           );
         })}

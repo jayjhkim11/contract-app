@@ -107,15 +107,22 @@ function getBaseUrl(req: NextRequest): string {
   return new URL(req.url).origin;
 }
 
+/** 비율(%) → 만원 단위 절삭 선금 금액 */
+function calcSeongeum(total: number, rate: number): number {
+  if (!total || !rate) return 0;
+  return Math.floor((total * rate) / 100 / 10000) * 10000;
+}
+
 /**
  * 프로젝트 + 사용자 보완값 → fill_hwpx.py가 기대하는 values 객체
  * 스킬의 플레이스홀더 규칙 그대로 매핑.
  */
 function buildValues(p: Project, formKey: FormKey): Record<string, string | number> {
   const total = p.parsed.contractAmount;
-  const seongeum = p.manual.seongeumAmount;
+  const rate = p.manual.seongeumRate || 0;
+  const seongeum = calcSeongeum(total, rate);
   const department = p.manual.department || p.parsed.department || "";
-  const submissionYear = p.manual.submissionYear;
+  const submissionDate = p.manual.submissionDate;
 
   // 기본값: 모든 양식 공통
   const v: Record<string, string | number> = {
@@ -131,20 +138,18 @@ function buildValues(p: Project, formKey: FormKey): Record<string, string | numb
     // {{8}}(계약보증금액)은 구비서류에만 사용 — 필요 시 v["8"] 추가 입력
     "13": department,
   };
-  if (submissionYear) v["_submission_year"] = String(submissionYear);
+  if (submissionDate) v["_submission_date"] = submissionDate;
 
   if (formKey === "3__선금신청서") {
-    if (!seongeum) {
-      throw new Error("선금 신청금액이 입력되지 않았습니다");
+    if (!rate) {
+      throw new Error("선금 신청비율이 입력되지 않았습니다");
     }
-    // 선금 신청비율 계산: rate = round(seongeum / total * 100)
-    const rate = Math.round((seongeum / total) * 100);
     v["_seongeum_rate"] = rate;
   }
 
   if (formKey === "5__청구서") {
     // 청구금액 = 선금이 입력되었으면 잔금, 아니면 총액
-    const claim = seongeum ? total - seongeum : total;
+    const claim = seongeum > 0 ? total - seongeum : total;
     v["_cheonggu_amount"] = claim;
   }
 

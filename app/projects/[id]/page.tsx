@@ -98,19 +98,6 @@ export default function ProjectDetailPage() {
           <ContractInfoPanel project={project} onSave={saveManual} />
           <FormGrid project={project} onGenerate={generateForm} />
           <ChecklistPanel project={project} onSave={saveChecklists} />
-          {project.driveFolderId && (
-            <div className="rounded-md bg-muted px-4 py-3 text-xs text-muted-foreground">
-              📁 생성된 파일은 Drive 폴더에 자동 저장됩니다 —{" "}
-              <a
-                href={`https://drive.google.com/drive/folders/${project.driveFolderId}`}
-                target="_blank"
-                rel="noreferrer"
-                className="font-medium text-foreground underline"
-              >
-                폴더 열기
-              </a>
-            </div>
-          )}
         </div>
       </div>
     </main>

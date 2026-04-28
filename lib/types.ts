@@ -33,10 +33,11 @@ export interface ParsedContract {
 // 사용자가 화면에서 보완 입력한 값.
 export interface ManualOverrides {
   department?: string;
-  // 선금 신청금액. 비우면 청구서가 총액 청구.
-  seongeumAmount?: number;
-  // 제출일 연도. 미입력 시 계약종료일 연도 사용.
-  submissionYear?: number;
+  // 선금 신청비율 (%). 비우면 선금 없음 → 청구서가 총액 청구.
+  // 입력 시 선금 = floor(총액 * rate / 100 / 10000) * 10000 으로 만원 단위 절삭하여 자동 계산.
+  seongeumRate?: number;
+  // 제출일. 형식: YYYY. MM. DD. 미입력 시 계약종료일 연도 + 빈 월/일.
+  submissionDate?: string;
 }
 
 export interface FormGenerationRecord {

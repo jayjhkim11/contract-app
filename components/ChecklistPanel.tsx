@@ -42,7 +42,7 @@ export default function ChecklistPanel({ project, onSave }: Props) {
   }, [state, dirty]);
 
   const visible = CHECKLIST_ORDER.filter(
-    (c) => !c.onlyIfSeongeum || !!project.manual.seongeumAmount
+    (c) => !c.onlyIfSeongeum || (project.manual.seongeumRate ?? 0) > 0
   );
 
   function toggleOpen(key: string) {

@@ -198,6 +198,25 @@ def apply_submission_year(content, values):
     )
 
 
+def apply_submission_date(content, values):
+    """
+    제출일 'YYYY. . .' 패턴 전체를 _submission_date 값으로 교체.
+    apply_submission_year 보다 우선 적용. _submission_date 미지정 시 호출되지 않음.
+
+    예) 템플릿 '2025. . .' / '2024.  . ' / '2025.   .    .' → '2026. 04. 28.' (입력값)
+    """
+    import re
+    date = values.get('_submission_date')
+    if not date:
+        return content
+    # 점 2~3개 + 임의 공백 패턴을 모두 매칭하여 통째로 교체
+    return re.sub(
+        r'<hp:t>\d{4}\.\s*\.\s*\.?\s*</hp:t>',
+        f'<hp:t>{date}</hp:t>',
+        content
+    )
+
+
 def apply_cheonggu_amount(content, values):
     """
     청구서의 청구금액(5. 청구금액) 자동 입력.
@@ -318,7 +337,11 @@ def fill_hwpx(template_path, output_path, values):
                 content = apply_address(content, values['2'])
 
             content = apply_bank_info(content, values)
-            content = apply_submission_year(content, values)
+            # _submission_date 가 있으면 전체 날짜 치환, 없으면 연도만 치환 (fallback)
+            if values.get('_submission_date'):
+                content = apply_submission_date(content, values)
+            else:
+                content = apply_submission_year(content, values)
 
             # 완료계: 완료일 자동 입력
             if '4__완료계' in template_path:

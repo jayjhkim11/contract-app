@@ -8,41 +8,67 @@ interface Props {
   onSave: (manual: Project["manual"]) => Promise<void>;
 }
 
+/** 계약 총액과 비율(0~100)로부터 만원 단위 절삭한 선금 금액 계산. */
+function calcSeongeum(total: number, rate: number): number {
+  if (!total || !rate) return 0;
+  return Math.floor((total * rate) / 100 / 10000) * 10000;
+}
+
+/** "2026-04-28" (HTML date input value) → "2026. 04. 28." */
+function fromIso(iso: string): string {
+  if (!iso) return "";
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return "";
+  return `${m[1]}. ${m[2]}. ${m[3]}.`;
+}
+
+/** "2026. 04. 28." → "2026-04-28" (HTML date input value) */
+function toIso(formatted: string | undefined): string {
+  if (!formatted) return "";
+  const m = formatted.match(/^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.?$/);
+  if (!m) return "";
+  return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+}
+
 /**
- * 계약서에서 추출된 정보 + 사용자 보완 입력 (선금/제출연도/발주부서) 통합 패널.
+ * 계약서에서 추출된 정보 + 사용자 보완 입력 (발주부서/선금 비율/제출일) 통합 패널.
  * 변경 시 onSave로 호출자에게 알린다.
  */
 export default function ContractInfoPanel({ project, onSave }: Props) {
-  const [department, setDepartment] = useState(project.manual.department ?? project.parsed.department ?? "");
-  const [seongeum, setSeongeum] = useState<string>(
-    project.manual.seongeumAmount ? String(project.manual.seongeumAmount) : ""
+  const [department, setDepartment] = useState(
+    project.manual.department ?? project.parsed.department ?? ""
   );
-  const [year, setYear] = useState<string>(
-    project.manual.submissionYear ? String(project.manual.submissionYear) : ""
+  const [seongeumRate, setSeongeumRate] = useState<string>(
+    project.manual.seongeumRate != null ? String(project.manual.seongeumRate) : ""
+  );
+  const [submissionDateIso, setSubmissionDateIso] = useState<string>(
+    toIso(project.manual.submissionDate)
   );
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
     setDirty(true);
-    // 디바운스
     const t = setTimeout(async () => {
       setSaving(true);
+      const rate = seongeumRate ? Number(seongeumRate) : undefined;
       await onSave({
         department: department || undefined,
-        seongeumAmount: seongeum ? Number(seongeum.replace(/,/g, "")) : undefined,
-        submissionYear: year ? Number(year) : undefined,
+        seongeumRate: rate && rate > 0 ? rate : undefined,
+        submissionDate: submissionDateIso ? fromIso(submissionDateIso) : undefined,
       });
       setSaving(false);
       setDirty(false);
     }, 600);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [department, seongeum, year]);
+  }, [department, seongeumRate, submissionDateIso]);
 
   const p = project.parsed;
   const total = p.contractAmount;
-  const claim = seongeum ? total - Number(seongeum.replace(/,/g, "")) : total;
+  const rateNum = Number(seongeumRate) || 0;
+  const seongeumAmount = calcSeongeum(total, rateNum);
+  const claim = seongeumAmount > 0 ? total - seongeumAmount : total;
 
   return (
     <section>
@@ -65,23 +91,34 @@ export default function ContractInfoPanel({ project, onSave }: Props) {
           onChange={setDepartment}
         />
         <RowInput
-          label="선금 신청금액"
+          label="선금 신청비율"
           placeholder="비우면 청구서가 총액으로 청구됩니다"
-          value={seongeum}
-          onChange={(v) => setSeongeum(v.replace(/[^\d,]/g, ""))}
-          suffix="원"
+          value={seongeumRate}
+          onChange={(v) => {
+            const cleaned = v.replace(/[^\d.]/g, "").slice(0, 5);
+            const num = Number(cleaned);
+            if (cleaned === "" || (num >= 0 && num <= 100)) setSeongeumRate(cleaned);
+          }}
+          suffix="%"
+          hint={
+            rateNum > 0
+              ? `≈ 선금 ₩${seongeumAmount.toLocaleString("en-US")} (만원 단위 절삭)`
+              : undefined
+          }
+          inputType="text"
         />
         <RowInput
-          label="제출일 연도"
-          placeholder={String(parseInt(p.endDate || `${new Date().getFullYear()}`, 10) || new Date().getFullYear())}
-          value={year}
-          onChange={(v) => setYear(v.replace(/\D/g, "").slice(0, 4))}
+          label="제출일"
+          placeholder=""
+          value={submissionDateIso}
+          onChange={setSubmissionDateIso}
+          inputType="date"
         />
       </div>
-      {seongeum && (
-        <div className="mt-2 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-          선금 ₩{Number(seongeum.replace(/,/g, "")).toLocaleString("en-US")} 입력됨 → 청구서는 잔금 ₩
-          {claim.toLocaleString("en-US")} 으로 자동 청구됩니다.
+      {rateNum > 0 && (
+        <div className="mt-2 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">
+          선금 {rateNum}% (₩{seongeumAmount.toLocaleString("en-US")}) 입력됨 → 청구서는 잔금 <b>₩
+          {claim.toLocaleString("en-US")}</b> 으로 자동 청구됩니다.
         </div>
       )}
     </section>
@@ -92,7 +129,9 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid grid-cols-[140px_1fr] items-center gap-3 border-b border-border px-4 py-2.5 text-sm last:border-0">
       <div className="text-muted-foreground">{label}</div>
-      <div className="font-medium">{value || <span className="text-muted-foreground">—</span>}</div>
+      <div className="font-medium">
+        {value || <span className="text-muted-foreground">—</span>}
+      </div>
     </div>
   );
 }
@@ -104,6 +143,8 @@ function RowInput({
   placeholder,
   required,
   suffix,
+  hint,
+  inputType = "text",
 }: {
   label: string;
   value: string;
@@ -111,21 +152,27 @@ function RowInput({
   placeholder?: string;
   required?: boolean;
   suffix?: string;
+  hint?: string;
+  inputType?: string;
 }) {
   return (
-    <div className="grid grid-cols-[140px_1fr] items-center gap-3 border-b border-border px-4 py-2.5 text-sm last:border-0">
-      <div className={required ? "text-red-600" : "text-muted-foreground"}>
+    <div className="grid grid-cols-[140px_1fr] items-start gap-3 border-b border-border px-4 py-2.5 text-sm last:border-0">
+      <div className={`pt-1.5 ${required ? "text-red-600" : "text-muted-foreground"}`}>
         {label}
         {required ? " *" : ""}
       </div>
-      <div className="flex items-center gap-2">
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="flex-1 rounded-md border border-border px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none"
-        />
-        {suffix && <span className="text-xs text-muted-foreground">{suffix}</span>}
+      <div>
+        <div className="flex items-center gap-2">
+          <input
+            type={inputType}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            className="flex-1 rounded-md border border-border px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none"
+          />
+          {suffix && <span className="text-xs text-muted-foreground">{suffix}</span>}
+        </div>
+        {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
       </div>
     </div>
   );
