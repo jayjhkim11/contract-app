@@ -118,7 +118,9 @@ def parse_contract_text(text: str) -> dict:
     )
     department = _extract(text, r"담당\s*부서\s*[:：]?\s*([^\n]+?)(?=\s+담당|\s*$)")
 
+    contract_number = _extract(text, r"계약번호\s*[:：]?\s*([A-Z0-9\-]+)")
     return {
+        "contractNumber": contract_number or "",
         "company": company or "",
         "address": address or "",
         "representative": representative or "",
