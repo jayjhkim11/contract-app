@@ -22,7 +22,7 @@ export const storage = getStorage(app);
 
 // Drive scope를 OAuth scope에 추가한 Google provider
 export const googleProvider = new GoogleAuthProvider();
-googleProvider.addScope("https://www.googleapis.com/auth/drive.file");
+googleProvider.addScope("https://www.googleapis.com/auth/drive");
 googleProvider.setCustomParameters({
   // refresh_token 발급을 위해 첫 로그인 시 동의 화면 강제
   prompt: "consent",

@@ -3,6 +3,7 @@ import { Readable } from "stream";
 
 /**
  * Drive 클라이언트. 사용자 access token 위임으로 동작.
+ * 공유 드라이브를 지원하도록 모든 호출에 supportsAllDrives 옵션 적용.
  */
 export function getDrive(accessToken: string) {
   const oauth2 = new google.auth.OAuth2();
@@ -12,23 +13,26 @@ export function getDrive(accessToken: string) {
 
 type DriveClient = ReturnType<typeof getDrive>;
 
-/** name + parent 조합으로 폴더 검색. 없으면 null */
+/** 부모 폴더 안에서 같은 이름의 자식 폴더 검색 (공유 드라이브 포함). */
 export async function findFolder(
   drive: DriveClient,
   name: string,
-  parentId?: string
+  parentId: string
 ): Promise<string | null> {
   const q = [
     `name = '${name.replace(/'/g, "\\'")}'`,
     `mimeType = 'application/vnd.google-apps.folder'`,
     "trashed = false",
-    parentId ? `'${parentId}' in parents` : `'root' in parents`,
+    `'${parentId}' in parents`,
   ].join(" and ");
 
   const res = await drive.files.list({
     q,
     fields: "files(id,name)",
     pageSize: 1,
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+    corpora: "allDrives",
   });
   return res.data.files?.[0]?.id ?? null;
 }
@@ -36,7 +40,7 @@ export async function findFolder(
 export async function getOrCreateFolder(
   drive: DriveClient,
   name: string,
-  parentId?: string
+  parentId: string
 ): Promise<string> {
   const existing = await findFolder(drive, name, parentId);
   if (existing) return existing;
@@ -44,29 +48,31 @@ export async function getOrCreateFolder(
     requestBody: {
       name,
       mimeType: "application/vnd.google-apps.folder",
-      parents: parentId ? [parentId] : undefined,
+      parents: [parentId],
     },
     fields: "id",
+    supportsAllDrives: true,
   });
   return res.data.id!;
 }
 
 /**
- * 프로젝트 폴더 경로를 보장. 예: 청춘작당/2026/곡성어린이도서관_도서관의날
+ * 부모 폴더 ID 안에 {연도}/{프로젝트명_slug}/ 폴더 생성 후 그 ID 반환.
+ * parentFolderId 는 사용자가 환경변수로 지정한 "계약 문서 관리" 같은 최종 부모 폴더의 ID.
+ * (공유 드라이브의 폴더면 supportsAllDrives 로 처리됨)
  */
 export async function ensureProjectFolder(
   drive: DriveClient,
-  rootName: string,
+  parentFolderId: string,
   year: number,
   projectFolderName: string
 ): Promise<string> {
-  const root = await getOrCreateFolder(drive, rootName);
-  const yearFolder = await getOrCreateFolder(drive, String(year), root);
+  const yearFolder = await getOrCreateFolder(drive, String(year), parentFolderId);
   return getOrCreateFolder(drive, projectFolderName, yearFolder);
 }
 
 /**
- * 파일 업로드. existingFileId가 주어지면 그 파일을 in-place 업데이트하여
+ * 파일 업로드. existingFileId가 주어지면 in-place 업데이트하여
  * Drive 링크가 보존된다 (재생성 시 활용).
  */
 export async function uploadFile(
@@ -87,6 +93,7 @@ export async function uploadFile(
       requestBody: { name: opts.fileName },
       media: { mimeType: opts.mimeType, body: stream },
       fields: "id,webViewLink",
+      supportsAllDrives: true,
     });
     return { id: res.data.id!, webViewLink: res.data.webViewLink! };
   }
@@ -97,6 +104,7 @@ export async function uploadFile(
     },
     media: { mimeType: opts.mimeType, body: stream },
     fields: "id,webViewLink",
+    supportsAllDrives: true,
   });
   return { id: res.data.id!, webViewLink: res.data.webViewLink! };
 }

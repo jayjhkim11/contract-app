@@ -17,7 +17,7 @@ interface Props {
 
 /**
  * 서식별 제출 시 구비서류 아코디언.
- * 선금 청구서는 manual.seongeumAmount 가 입력된 경우에만 노출.
+ * 선금 청구서는 manual.seongeumRate > 0 인 경우에만 노출.
  * 체크박스 변경 시 디바운스 후 onSave(전체 ChecklistState) 호출.
  */
 export default function ChecklistPanel({ project, onSave }: Props) {

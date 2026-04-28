@@ -11,7 +11,7 @@ interface Props {
 /** 계약 총액과 비율(0~100)로부터 만원 단위 절삭한 선금 금액 계산. */
 function calcSeongeum(total: number, rate: number): number {
   if (!total || !rate) return 0;
-  return Math.floor((total * rate) / 100 / 10000) * 10000;
+  return Math.floor((total * rate) / 100);
 }
 
 /** "2026-04-28" (HTML date input value) → "2026. 04. 28." */
@@ -102,7 +102,7 @@ export default function ContractInfoPanel({ project, onSave }: Props) {
           suffix="%"
           hint={
             rateNum > 0
-              ? `≈ 선금 ₩${seongeumAmount.toLocaleString("en-US")} (만원 단위 절삭)`
+              ? `≈ 선금 ₩${seongeumAmount.toLocaleString("en-US")}`
               : undefined
           }
           inputType="text"

@@ -264,7 +264,7 @@ def apply_seongeum(content, values):
         return content
 
     total = int(amount_match.group(0).replace(',', ''))
-    seongeum = (total * int(rate) // 100 // 10000) * 10000
+    seongeum = (total * int(rate)) // 100  # 원 미만만 절삭 (만원 단위 절삭 X)
     kor_amount = format_amount(seongeum)
 
     # 1페이지: "6. 선금급 신청금액 :"

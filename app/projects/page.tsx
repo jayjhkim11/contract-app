@@ -2,13 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-} from "firebase/firestore";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import Header from "@/components/Header";
 import ProjectCard from "@/components/ProjectCard";
 import ContractUpload from "@/components/ContractUpload";
@@ -30,15 +24,15 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     if (!auth.currentUser) return;
+    // orderBy 사용 시 composite index 필요. client-side 정렬로 우회.
     const q = query(
       collection(db, "projects"),
-      where("ownerId", "==", auth.currentUser.uid),
-      orderBy("createdAt", "desc")
+      where("ownerId", "==", auth.currentUser.uid)
     );
     return onSnapshot(q, (snap) => {
-      setProjects(
-        snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Project[]
-      );
+      const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Project[];
+      list.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+      setProjects(list);
     });
   }, [authReady]);
 

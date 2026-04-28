@@ -50,13 +50,16 @@ export async function POST(req: NextRequest) {
 
     // 3) Drive 업로드
     const drive = getDrive(driveAccessToken);
-    const rootName = process.env.NEXT_PUBLIC_DRIVE_ROOT_FOLDER || "계약 문서 관리";
-       // 폴더 연도: 사용자가 입력한 제출일 → 계약종료일 → 계약일자
-       const year = project.manual.submissionDate
-         ? yearOf(project.manual.submissionDate)
-         : yearOf(project.parsed.endDate || project.parsed.contractDate);
+    const parentFolderId = process.env.NEXT_PUBLIC_DRIVE_PARENT_FOLDER_ID;
+    if (!parentFolderId) {
+      throw new Error("NEXT_PUBLIC_DRIVE_PARENT_FOLDER_ID 환경변수가 설정되지 않았습니다");
+    }
+    // 폴더 연도: 사용자가 입력한 제출일 → 계약종료일 → 계약일자
+    const year = project.manual.submissionDate
+      ? yearOf(project.manual.submissionDate)
+      : yearOf(project.parsed.endDate || project.parsed.contractDate);
     const folderName = slugifyForFolder(project.parsed.serviceName || projectId);
-    const folderId = await ensureProjectFolder(drive, rootName, year, folderName);
+    const folderId = await ensureProjectFolder(drive, parentFolderId, year, folderName);
 
     const existing = project.forms[formKey];
     const main = await uploadFile(drive, {
@@ -113,7 +116,7 @@ function getBaseUrl(req: NextRequest): string {
 /** 비율(%) → 만원 단위 절삭 선금 금액 */
 function calcSeongeum(total: number, rate: number): number {
   if (!total || !rate) return 0;
-  return Math.floor((total * rate) / 100 / 10000) * 10000;
+  return Math.floor((total * rate) / 100);
 }
 
 /**
