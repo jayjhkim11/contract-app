@@ -192,7 +192,7 @@ def apply_submission_year(content, values):
     # 'YYYY. . .' / 'YYYY.   .    .' / 'YYYY.  . ' / 'YYYY.  .' 등
     # 점 2~3개 + 임의 공백 모두 매칭. 마지막 점은 선택적.
     return re.sub(
-        r'(<hp:t>)\d{4}(\.\s*\.\s*\.?\s*</hp:t>)',
+        r'(<hp:t>)2025(\.\s*\.\s*\.?\s*</hp:t>)',
         lambda m: m.group(1) + str(year) + m.group(2),
         content
     )
@@ -203,7 +203,8 @@ def apply_submission_date(content, values):
     제출일 'YYYY. . .' 패턴 전체를 _submission_date 값으로 교체.
     apply_submission_year 보다 우선 적용. _submission_date 미지정 시 호출되지 않음.
 
-    예) 템플릿 '2025. . .' / '2024.  . ' / '2025.   .    .' → '2026. 04. 28.' (입력값)
+    예) 템플릿 '2025. . .' / '2025.   .    .' (연도가 2025인 패턴만) → '2026. 04. 28.' (입력값)
+    주의: '2024.  . ' 같은 다른 연도 패턴은 매칭하지 않음 (착수계·접수일시 보호)
     """
     import re
     date = values.get('_submission_date')
@@ -211,7 +212,7 @@ def apply_submission_date(content, values):
         return content
     # 점 2~3개 + 임의 공백 패턴을 모두 매칭하여 통째로 교체
     return re.sub(
-        r'<hp:t>\d{4}\.\s*\.\s*\.?\s*</hp:t>',
+        r'<hp:t>2025\.\s*\.\s*\.?\s*</hp:t>',
         f'<hp:t>{date}</hp:t>',
         content
     )
